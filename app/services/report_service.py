@@ -1,6 +1,6 @@
 class ReportService:
 
-    def generate_html(self, law_name, changes):
+    def generate_html(self, law_name, changes, impact):
 
         html = f"""
         <html>
@@ -11,12 +11,18 @@ class ReportService:
                 .add {{ color: green; }}
                 .del {{ color: red; text-decoration: line-through; }}
                 .box {{ border:1px solid #ccc; padding:10px; margin:10px; }}
+                .impact {{ background:#f5f5f5; padding:10px; }}
             </style>
         </head>
         <body>
 
         <h2>📢 법령 변경 리포트</h2>
         <h3>{law_name}</h3>
+
+        <div class="impact">
+        <h3>📊 영향도 분석</h3>
+        {impact}
+        </div>
         """
 
         for c in changes:
