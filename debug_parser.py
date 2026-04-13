@@ -26,7 +26,8 @@ def save_markdown(md_text, path="debug.md"):
 
 
 def md_to_pdf(md_text, output_pdf="debug.pdf"):
-    html = markdown.markdown(md_text)
+    # html = markdown.markdown(md_text)
+    html = markdown.markdown(md_text, extensions=['nl2br'])
     HTML(string=html).write_pdf(output_pdf)
     print(f"[DEBUG] PDF 생성 완료: {output_pdf}")
 
@@ -106,9 +107,13 @@ def to_markdown(law):
         number = art.get("number", "")
         title = art.get("title", "")
 
-        md.append(f"### 제{number}조 {title}")
-        md.append(content)
+        if not title:
+            md.append(content)
+        else:
+            md.append(f"### 제{number}조 {title}")
+            md.append(content)
         md.append("")
+        # md.append("\n")
 
     # =========================
     # 2️⃣ 부칙
