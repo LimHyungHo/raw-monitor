@@ -1,4 +1,5 @@
 # app/parsers/law_parser.py
+import re
 
 class LawParser:
 
@@ -9,9 +10,24 @@ class LawParser:
 
         return {
             "name": info.get("법령명_한글"),
-            "articles": self._parse_articles(law_data)
+            "articles": self._parse_articles(law_data),
+            "addenda": self._parse_addenda(law_data),     # 부칙
+            "appendix": self._parse_appendix(law_data)    # 별표
         }
+    # def parse(self, data):
 
+    #     law_data = data.get("법령", {})
+    #     info = law_data.get("기본정보", {})
+
+    #     return {
+    #         "meta": {
+    #             "name": info.get("법령명_한글"),
+    #         },
+    #         "articles": self._parse_articles(law_data),
+    #         "addenda": self._parse_addenda(law_data),
+    #         "appendix": self._parse_appendix(law_data)
+    #     }
+    
     def _parse_articles(self, law_data):
 
         raw_articles = law_data.get("조문", {}).get("조문단위", [])
@@ -23,18 +39,196 @@ class LawParser:
 
         for art in raw_articles:
 
-            content = art.get("조문내용")
+            article_text = []
 
-            if not content:
+            # 1️⃣ 조문내용
+            content_raw = art.get("조문내용")
+            if content_raw:
+                flat = self._flatten(content_raw)
+                structured = self._split_structure(flat)
+
+                for typ, text in structured:
+                    if typ == "chapter":
+                        article_text.append(f"# {text}")
+                    elif typ == "section":
+                        article_text.append(f"## {text}")
+                    elif typ == "subsection":
+                        article_text.append(f"### {text}")
+                    else:
+                        article_text.append(self._to_str(text))
+            # if art.get("조문내용"):
+            #     article_text.append(self._to_str(art.get("조문내용")))
+
+            # 2️⃣ 항 파싱
+            paragraphs = art.get("항", [])
+            if not isinstance(paragraphs, list):
+                paragraphs = [paragraphs]
+
+            for para in paragraphs:
+                if not para:
+                    continue
+
+                # 2️⃣ 항
+                if para.get("항내용"):
+                    article_text.append(f"  {self._to_str(para.get('항내용'))}")
+
+                # 3️⃣ 호 파싱
+                items = para.get("호", [])
+                if not isinstance(items, list):
+                    items = [items]
+
+                for item in items:
+                    if not item:
+                        continue
+
+                    # 3️⃣ 호
+                    if item.get("호내용"):
+                        article_text.append(f"   {self._to_str(item.get('호내용'))}")
+
+                    # 4️⃣ 목 파싱
+                    sub_items = item.get("목", [])
+                    if not isinstance(sub_items, list):
+                        sub_items = [sub_items]
+
+                    for sub in sub_items:
+                        if not sub:
+                            continue
+
+                        # 4️⃣ 목
+                        if sub.get("목내용"):
+                            article_text.append(f"     {self._to_str(sub.get('목내용'))}")
+
+            # 🔥 본문이 하나라도 있어야 추가
+            if not article_text:
                 continue
 
             results.append({
                 "number": art.get("조문번호"),
                 "title": art.get("조문제목"),
-                "content": content
+                "content": "\n".join(article_text)
             })
 
         return results
+    
+    def _parse_addenda(self, law_data):
+
+        addenda = law_data.get("부칙")
+        if not addenda:
+            return None
+
+        # 케이스 1: 문자열
+        if isinstance(addenda, str):
+            return addenda
+
+        # 케이스 2: 부칙내용 직접
+        if addenda.get("부칙내용"):
+            return self._to_str(addenda.get("부칙내용"))
+
+        # 케이스 3: 부칙단위
+        units = addenda.get("부칙단위", [])
+
+        if not isinstance(units, list):
+            units = [units]
+
+        texts = []
+        for unit in units:
+            if unit.get("부칙내용"):
+                texts.append(self._to_str(unit.get("부칙내용")))
+
+        return "\n".join(texts) if texts else None
+    
+    def _parse_appendix(self, law_data):
+
+        appendix = law_data.get("별표")
+        if not appendix:
+            return []
+
+        # 케이스 1: 별표단위 구조
+        if isinstance(appendix, dict):
+            appendix = appendix.get("별표단위", [])
+
+        if not isinstance(appendix, list):
+            appendix = [appendix]
+
+        results = []
+
+        for app in appendix:
+            if not app:
+                continue
+
+            results.append({
+                "title": app.get("별표제목"),
+                "content": app.get("별표내용")
+            })
+
+        return results
+
+    def _to_str(self, value):
+        if not value:
+            return ""
+
+        if isinstance(value, list):
+            return "\n".join(self._to_str(v) for v in value)
+
+        return str(value) 
+    
+    def _flatten(self, value):
+        if isinstance(value, list):
+            result = []
+            for v in value:
+                result.extend(self._flatten(v))
+            return result
+        return [value]
+    
+    def _split_structure(self, texts):
+        results = []
+
+        for text in texts:
+            if not text:
+                continue
+
+            text = text.strip()
+
+            # 장
+            if re.match(r"^제\s*\d+\s*장", text):
+                results.append(("chapter", text))
+
+            # 절
+            elif re.match(r"^제\s*\d+\s*절", text):
+                results.append(("section", text))
+
+            # 관
+            elif re.match(r"^제\s*\d+\s*관", text):
+                results.append(("subsection", text))
+
+            else:
+                results.append(("text", text))
+
+        return results
+    # def _parse_articles(self, law_data):
+
+    #     raw_articles = law_data.get("조문", {}).get("조문단위", [])
+
+    #     if not isinstance(raw_articles, list):
+    #         raw_articles = [raw_articles]
+
+    #     results = []
+
+    #     for art in raw_articles:
+
+    #         content = art.get("조문내용")
+    #         # Paragraphs, Items, SubItems는 조문내용에 포함되어 있지 않고 항/항내용, 호/호내용, 목/목내용에 있는데 별도 추출하지 않음
+
+    #         if not content:
+    #             continue
+
+    #         results.append({
+    #             "number": art.get("조문번호"),
+    #             "title": art.get("조문제목"),
+    #             "content": content
+    #         })
+
+    #     return results
 # # app/parsers/law_parser.py
 
 # from app.parsers.base_parser import BaseParser

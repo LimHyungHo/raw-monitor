@@ -1,6 +1,7 @@
 import json
 import sys
 import os
+import re
 from pprint import pprint
 
 from app.parsers.law_parser import LawParser
@@ -29,6 +30,54 @@ def md_to_pdf(md_text, output_pdf="debug.pdf"):
     HTML(string=html).write_pdf(output_pdf)
     print(f"[DEBUG] PDF 생성 완료: {output_pdf}")
 
+def _flatten(self, value):
+    if isinstance(value, list):
+        result = []
+        for v in value:
+            result.extend(self._flatten(v))
+        return result
+    return [value]
+
+def detect_structure(text):
+    if not text:
+        return None
+
+    text = text.strip()
+
+    if re.match(r"^제\s*\d+\s*장", text):
+        return "#"
+    elif re.match(r"^제\s*\d+\s*절", text):
+        return "##"
+    elif re.match(r"^제\s*\d+\s*관", text):
+        return "###"
+    
+    return None
+
+def _split_structure(self, texts):
+    results = []
+
+    for text in texts:
+        if not text:
+            continue
+
+        text = text.strip()
+
+        # 장
+        if re.match(r"^제\s*\d+\s*장", text):
+            results.append(("chapter", text))
+
+        # 절
+        elif re.match(r"^제\s*\d+\s*절", text):
+            results.append(("section", text))
+
+        # 관
+        elif re.match(r"^제\s*\d+\s*관", text):
+            results.append(("subsection", text))
+
+        else:
+            results.append(("text", text))
+
+    return results
 
 # =========================
 # Markdown 변환 (도메인 기반)
@@ -37,25 +86,134 @@ def to_markdown(law):
 
     md = []
 
-    md.append(f"# {law['name']}\n")
+    name = law.get("name") or law.get("meta", {}).get("name", "")
+    md.append(f"# {name}\n")
 
-    for art in law["articles"]:
+    # =========================
+    # 1️⃣ 조문
+    # =========================
+    for art in law.get("articles", []):
 
-        md.append(f"## 제{art['number']}조 {art['title']}")
+        content = (art.get("content") or "").strip()
 
-        content = art.get("content", "")
+        # 🔥 장/절/관 감지
+        level = detect_structure(content)
+        if level:
+            md.append(f"{level} {content}\n")
+            continue
 
-        # 🔥 핵심: list 방어
-        if isinstance(content, list):
-            content = "\n".join([str(c) for c in content if c])
+        # 일반 조문
+        number = art.get("number", "")
+        title = art.get("title", "")
 
-        if content:
-            md.append(content)
+        md.append(f"### 제{number}조 {title}")
+        md.append(content)
+        md.append("")
+
+    # =========================
+    # 2️⃣ 부칙
+    # =========================
+    addenda = law.get("addenda")
+
+    if addenda:
+        md.append("\n---\n")
+        md.append("# 부칙\n")
+
+        # 🔥 list 대응
+        if isinstance(addenda, list):
+            for item in addenda:
+                md.append(str(item))
+        else:
+            md.append(str(addenda))
 
         md.append("")
 
-    return "\n".join(md)
+    # =========================
+    # 3️⃣ 별표
+    # =========================
+    appendix = law.get("appendix", [])
 
+    if appendix:
+        md.append("\n---\n")
+        md.append("# 별표\n")
+
+        # 🔥 dict → list 보정
+        if not isinstance(appendix, list):
+            appendix = [appendix]
+
+        for idx, app in enumerate(appendix, 1):
+            if not app:
+                continue
+
+            title = app.get("title", "")
+            content = app.get("content", "")
+
+            md.append(f"## [별표 {idx}] {title}")
+
+            # 🔥 list / html 대응
+            if isinstance(content, list):
+                content = "\n".join(map(str, content))
+
+            md.append(str(content))
+            md.append("")
+
+    return "\n".join(md)
+# def to_markdown(law):
+#     print("\n==============================")
+#     print(law)
+
+#     md = []
+
+#     # 1️⃣ 제목
+#     # md.append(f"# {law['meta']['name']}\n")
+#     md.append(f"# {law['name']}\n")
+
+#     # 2️⃣ 본문 (조문)
+#     for art in law.get("articles", []):
+#         md.append(f"## 제{art['number']}조 {art.get('title','')}")
+#         md.append(art["content"])
+#         md.append("")
+
+#     # 3️⃣ 🔥 부칙
+#     if law.get("addenda"):
+#         md.append("\n---\n")
+#         md.append("# 부칙\n")
+#         md.append(law["addenda"])
+#         md.append("")
+
+#     # 4️⃣ 🔥 별표 (핵심)
+#     if law.get("appendix"):
+#         md.append("\n---\n")
+#         md.append("# 별표\n")
+
+#         for idx, app in enumerate(law["appendix"], 1):
+#             md.append(f"## [별표 {idx}] {app.get('title','')}")
+#             md.append(app.get("content", ""))
+#             md.append("")
+
+#     return "\n".join(md)
+# def to_markdown(law):
+# 
+#     md = []
+# 
+#     md.append(f"# {law['name']}\n")
+# 
+#     for art in law["articles"]:
+# 
+#         md.append(f"## 제{art['number']}조 {art['title']}")
+# 
+#         content = art.get("content", "")
+# 
+#         # 🔥 핵심: list 방어
+#         if isinstance(content, list):
+#             content = "\n".join([str(c) for c in content if c])
+# 
+#         if content:
+#             md.append(content)
+# 
+#         md.append("")
+# 
+#     return "\n".join(md)
 
 # =========================
 # 디버깅 출력
@@ -100,11 +258,14 @@ def main(file_path):
     law = parser.parse(data)
 
     # 구조 확인
-    debug_print(law)
+    # debug_print(law)
+    import json
+    print(json.dumps(law, ensure_ascii=False, indent=2))
 
     print("\n==============================")
     print("📝 Markdown 생성")
     print("==============================")
+
 
     md_text = to_markdown(law)
 
