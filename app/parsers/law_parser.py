@@ -178,7 +178,7 @@ class LawParser:
             parsed_content = self.normalize_appendix_lines(raw_content)
 
             results.append({
-                "title": app.get("별표제목"),
+                "title": f"## [별표 {format_appendix_no(app.get("별표번호"))}] {app.get("별표제목")}",
                 "content": parsed_content
             })
 
@@ -319,6 +319,12 @@ class LawParser:
     def is_table_content(self, content):
         text = "".join(str(content))
         return "┏" in text or "┃" in text or "┯" in text
-    
+
+def format_appendix_no(no):
+    if not no:
+        return ""
+
+    return str(int(no))  # "0001" → "1"
+
 def to_markdown_table_block(text):
     return f"\n\n<pre>\n{text}\n</pre>\n\n"

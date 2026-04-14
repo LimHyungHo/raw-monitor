@@ -153,7 +153,8 @@ def to_markdown(law):
             title = app.get("title", "")
             content = app.get("content", "")
 
-            md.append(f"## [별표 {idx}] {title}")
+            # md.append(f"## [별표 {idx}] {title}")
+            md.append(f"## {title}")
 
             # 🔥 list / html 대응
             if isinstance(content, list):
