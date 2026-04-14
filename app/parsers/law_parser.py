@@ -157,22 +157,22 @@ class LawParser:
 
             raw_content = app.get("별표내용")
 
-            # if self.is_table_content(raw_content):
+            if self.is_table_content(raw_content):
 
-            #     flat = []
-            #     for item in raw_content:
-            #         if isinstance(item, list):
-            #             flat.extend(item)
-            #         else:
-            #             flat.append(item)
+                flat = []
+                for item in raw_content:
+                    if isinstance(item, list):
+                        flat.extend(item)
+                    else:
+                        flat.append(item)
 
-            #     table_text = "\n".join(flat)
+                table_text = "\n".join(flat)
 
-            #     results.append({
-            #         "title": app.get("별표제목"),
-            #         "content": to_markdown_table_block(table_text)
-            #     })
-            #     continue
+                results.append({
+                    "title": app.get("별표제목"),
+                    "content": to_markdown_table_block(table_text)
+                })
+                continue
 
             # 🔥 핵심 변경
             parsed_content = self.normalize_appendix_lines(raw_content)
@@ -318,8 +318,9 @@ class LawParser:
     
     def is_table_content(self, content):
         text = "".join(str(content))
-        return "┏" in text or "┃" in text or "┯" in text
-
+        return "┏" in text or "┃" in text or "┯" in text \
+            or "┠" in text or "┗" in text or "┛" in text  or "┓" in text
+    
 def format_appendix_no(no):
     if not no:
         return ""
