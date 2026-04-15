@@ -10,6 +10,74 @@ from app.parsers.law_parser import LawParser
 import markdown
 from weasyprint import HTML
 
+from weasyprint import CSS
+
+css = CSS(string="""
+.law-table {
+    border-collapse: collapse;
+    width: 100%;
+    table-layout: fixed;   /* 🔥 핵심: 컬럼 균등 분배 */
+    font-size: 12px;
+}
+
+.law-table th, .law-table td {
+    border: 1px solid #333;
+    padding: 8px 10px;
+    vertical-align: middle;   /* 🔥 위쪽 붙는 문제 해결 */
+    word-break: break-word;   /* 🔥 긴 문장 자동 줄바꿈 */
+    line-height: 1.5;
+}
+
+.law-table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+    text-align: center;
+}
+
+.law-table td {
+    text-align: left;
+}
+
+/* 🔥 컬럼별 너비 조정 (중요) */
+.law-table td:nth-child(1),
+.law-table th:nth-child(1) {
+    width: 55%;
+}
+
+.law-table td:nth-child(2),
+.law-table th:nth-child(2) {
+    width: 20%;
+}
+
+.law-table td:nth-child(3),
+.law-table th:nth-child(3) {
+    width: 12%;
+    text-align: center;
+}
+
+.law-table td:nth-child(4),
+.law-table th:nth-child(4) {
+    width: 13%;
+    text-align: center;
+}
+# .law-table {
+#     width: 100%;
+#     border-collapse: collapse;
+#     font-size: 12px;
+# }
+
+# .law-table td, .law-table th {
+#     border: 1px solid black;
+#     padding: 4px;
+#     vertical-align: top;
+#     word-break: keep-all;
+#     white-space: normal;
+# }
+
+# .law-table br {
+#     line-height: 1.4;
+# }
+""")
 
 # =========================
 # 유틸
@@ -28,7 +96,8 @@ def save_markdown(md_text, path="debug.md"):
 def md_to_pdf(md_text, output_pdf="debug.pdf"):
     # html = markdown.markdown(md_text)
     html = markdown.markdown(md_text, extensions=['nl2br'])
-    HTML(string=html).write_pdf(output_pdf)
+    # HTML(string=html).write_pdf(output_pdf)
+    HTML(string=html).write_pdf(output_pdf, stylesheets=[css])
     print(f"[DEBUG] PDF 생성 완료: {output_pdf}")
 
 def _flatten(self, value):
@@ -266,7 +335,7 @@ def main(file_path):
     # 구조 확인
     # debug_print(law)
     import json
-    print(json.dumps(law, ensure_ascii=False, indent=2))
+    # print(json.dumps(law, ensure_ascii=False, indent=2))
 
     print("\n==============================")
     print("📝 Markdown 생성")
