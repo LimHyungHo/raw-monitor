@@ -1,7 +1,6 @@
 .env
 __pycache__/
 *.pyc
-news_report.pdf.env
 venv/
-output.pdf
-text_debug_*.json
+*.pdf
+*.json
