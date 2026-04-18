@@ -150,82 +150,72 @@ def _split_structure(self, texts):
 # Markdown 변환 (도메인 기반)
 # =========================
 def to_markdown(law):
+    if not law:
+        return ""
 
     md = []
 
-    name = law.get("name") or law.get("meta", {}).get("name", "")
+    # 1️⃣ 법령/규정명 (meta 또는 name)
+    name = law.get("name") or law.get("meta", {}).get("name", "규정 명칭")
     md.append(f"# {name}\n")
 
-    # =========================
-    # 1️⃣ 조문
-    # =========================
+    # 2️⃣ 조문 처리 (Articles)
     for art in law.get("articles", []):
-
-        content = (art.get("content") or "").strip()
-
-        # 🔥 장/절/관 감지
+        if not art: continue
+        content = art.get("content") or ""
+        
+        # 장/절/관 감지하여 마크다운 헤더로 변환
         level = detect_structure(content)
         if level:
             md.append(f"{level} {content}\n")
             continue
 
-        # 일반 조문
-        number = art.get("number", "")
+        num = art.get("number", "")
         title = art.get("title", "")
+        
+        if title:
+            md.append(f"### 제{num}조 {title}")
+        md.append(f"{content}\n")
 
-        if not title:
-            md.append(content)
-        else:
-            md.append(f"### 제{number}조 {title}")
-            md.append(content)
-        md.append("")
-        # md.append("\n")
-
-    # =========================
-    # 2️⃣ 부칙
-    # =========================
+    # 3️⃣ 부칙 처리 (Addenda)
     addenda = law.get("addenda")
-
     if addenda:
-        md.append("\n---\n")
-        md.append("# 부칙\n")
-
-        # 🔥 list 대응
+        md.append("\n---\n# 부칙\n")
         if isinstance(addenda, list):
-            for item in addenda:
-                md.append(str(item))
+            md.append("\n".join(map(str, addenda)))
         else:
             md.append(str(addenda))
 
-        md.append("")
+    # 4️⃣ 별표 처리 (Appendix) - 🔥 AttributeError 해결 포인트
+    appendix_data = law.get("appendix", [])
+    if appendix_data:
+        md.append("\n---\n# 별표\n")
 
-    # =========================
-    # 3️⃣ 별표
-    # =========================
-    appendix = law.get("appendix", [])
+        # [핵심] 리스트 속에 리스트가 있는 경우([[...]])를 대비한 평탄화
+        flat_appendix = []
+        if isinstance(appendix_data, list):
+            for item in appendix_data:
+                if isinstance(item, list):
+                    flat_appendix.extend(item) # 이중 리스트 해제
+                else:
+                    flat_appendix.append(item)
+        else:
+            flat_appendix = [appendix_data]
 
-    if appendix:
-        md.append("\n---\n")
-        md.append("# 별표\n")
-
-        # 🔥 dict → list 보정
-        if not isinstance(appendix, list):
-            appendix = [appendix]
-
-        for idx, app in enumerate(appendix, 1):
-            if not app:
+        for app in flat_appendix:
+            # app이 dict가 아니면 .get()에서 에러가 나므로 체크
+            if not isinstance(app, dict):
                 continue
 
-            title = app.get("title", "")
+            title = app.get("title", "별표")
             content = app.get("content", "")
 
-            # md.append(f"## [별표 {idx}] {title}")
             md.append(f"## {title}")
 
-            # 🔥 list / html 대응
+            # 내용이 리스트(normalize_appendix_lines 결과물)라면 줄바꿈으로 합침
             if isinstance(content, list):
                 content = "\n".join(map(str, content))
-
+            
             md.append(str(content))
             md.append("")
 

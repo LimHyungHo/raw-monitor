@@ -14,19 +14,6 @@ class LawParser:
             "addenda": self._parse_addenda(law_data),     # 부칙
             "appendix": self._parse_appendix(law_data)    # 별표
         }
-    # def parse(self, data):
-
-    #     law_data = data.get("법령", {})
-    #     info = law_data.get("기본정보", {})
-
-    #     return {
-    #         "meta": {
-    #             "name": info.get("법령명_한글"),
-    #         },
-    #         "articles": self._parse_articles(law_data),
-    #         "addenda": self._parse_addenda(law_data),
-    #         "appendix": self._parse_appendix(law_data)
-    #     }
     
     def _parse_articles(self, law_data):
 
@@ -329,161 +316,112 @@ class LawParser:
         ])
 
     def _parse_ascii_table_to_html(self, content):
-        import re
+            import re
 
-        def is_new_row(text):
-            if not text:
-                return False
-            return bool(re.match(r'^(\d+\.|[가-힣]\.|[①-⑳])', text.strip()))
+            def is_new_row(text):
+                if not text: return False
+                return bool(re.match(r'^(\d+\.|[가-힣]\.|[①-⑳])', text.strip()))
 
-        prefix_lines = []
-        table_lines = []
-        in_table = False
+            prefix_lines = []
+            table_lines = []
+            in_table = False
 
-        # --------------------------
-        # 1️⃣ 표 / 일반 텍스트 분리
-        # --------------------------
-        for line in content:
-            line = str(line)
+            # 1️⃣ 표 영역 분리
+            for line in content:
+                line = str(line)
+                if any(x in line for x in ["┏", "┌"]):
+                    in_table = True
+                    continue
+                if not in_table:
+                    prefix_lines.append(line)
+                    continue
+                if any(x in line for x in ["┗", "┘"]):
+                    break
+                table_lines.append(line)
 
-            if any(x in line for x in ["┏", "┌"]):
-                in_table = True
-                continue
+            # 2️⃣ 데이터 행 추출 및 열 개수 정규화 (IndexError 방지 핵심)
+            raw_rows = []
+            for line in table_lines:
+                if not (line.startswith("┃") or line.startswith("│")):
+                    continue
+                row_content = line.strip().strip("┃").strip("│")
+                cols = [c.strip() for c in row_content.split("│")]
+                raw_rows.append(cols)
+            
+            if not raw_rows: return ""
 
-            if not in_table:
-                prefix_lines.append(line)
-                continue
+            # 🔥 모든 행의 열 길이를 최대 길이에 맞춰 맞춤 (IndexError 방지)
+            max_cols = max(len(r) for r in raw_rows)
+            for r in raw_rows:
+                while len(r) < max_cols:
+                    r.append("")
 
-            if any(x in line for x in ["┗", "┘"]):
-                break
+            # 3️⃣ 헤더 / 바디 분리
+            header_rows = []
+            body_rows = []
+            mode = "header"
+            row_idx = 0
+            
+            for line in table_lines:
+                if any(x in line for x in ["┠", "├", "┯", "┰"]):
+                    mode = "body"
+                    continue
+                if not (line.startswith("┃") or line.startswith("│")):
+                    continue
+                
+                if mode == "header":
+                    header_rows.append(raw_rows[row_idx])
+                else:
+                    body_rows.append(raw_rows[row_idx])
+                row_idx += 1
 
-            table_lines.append(line)
+            # 4️⃣ 헤더 병합
+            final_header = []
+            if header_rows:
+                for i in range(max_cols):
+                    # i번째 열이 존재할 때만 병합 (이미 위에서 정규화해서 안전함)
+                    merged = " ".join(h[i] for h in header_rows if i < len(h) and h[i])
+                    final_header.append(merged.strip())
 
-        # --------------------------
-        # 2️⃣ row 수집
-        # --------------------------
-        rows = []
+            # 5️⃣ 멀티라인 행 병합 (이어붙이기)
+            merged_body = []
+            for row in body_rows:
+                if all(not c.strip() for c in row): continue
 
-        for line in table_lines:
-            if not (line.startswith("┃") or line.startswith("│")):
-                continue
+                first_col = row[0].strip()
+                # 이어붙이기 조건: 이전 행이 있고, 현재 행이 새로운 번호로 시작하지 않을 때
+                if merged_body and not is_new_row(first_col):
+                    prev_row = merged_body[-1]
+                    for i in range(len(row)):
+                        if row[i].strip():
+                            prev_row[i] += " " + row[i].strip()
+                else:
+                    merged_body.append(row)
 
-            row = line.strip().strip("┃").strip("│")
-            cols = [c.strip() for c in row.split("│")]
-            rows.append(cols)
+            # 6️⃣ HTML 생성
+            html = []
+            if prefix_lines:
+                html.append("<div class='appendix-prefix'>")
+                for p in prefix_lines:
+                    html.append(f"<p>{p}</p>")
+                html.append("</div>")
 
-        # --------------------------
-        # 3️⃣ 헤더 / 바디 분리
-        # --------------------------
-        header = []
-        body = []
-        mode = "header"
+            html.append("<table class='law-table' border='1'>")
+            if final_header:
+                html.append("<thead><tr>")
+                for col in final_header:
+                    html.append(f"<th>{col}</th>")
+                html.append("</tr></thead>")
 
-        row_idx = 0
+            html.append("<tbody>")
+            for row in merged_body:
+                html.append("<tr>")
+                for col in row:
+                    html.append(f"<td>{col}</td>")
+                html.append("</tr>")
+            html.append("</tbody></table>")
 
-        for line in table_lines:
-
-            if line.startswith("┠") or line.startswith("├"):
-                mode = "body"
-                continue
-
-            if not (line.startswith("┃") or line.startswith("│")):
-                continue
-
-            # 👉 row는 따로 가져옴
-            row = rows[row_idx]
-            row_idx += 1
-
-            if mode == "header":
-                header.append(row)
-            else:
-                body.append(row)
-        # for line, row in zip(table_lines, rows):
-
-        #     if line.startswith("┠"):
-        #         mode = "body"
-        #         continue
-
-        #     if not line.startswith("┃"):
-        #         continue
-
-        #     if mode == "header":
-        #         header.append(row)
-        #     else:
-        #         body.append(row)
-
-        # --------------------------
-        # 4️⃣ 헤더 병합
-        # --------------------------
-        final_header = []
-        if header:
-            for i in range(len(header[0])):
-                merged = " ".join(h[i] for h in header if h[i])
-                final_header.append(merged.strip())
-
-        # --------------------------
-        # 5️⃣ 멀티라인 row 병합 🔥🔥🔥
-        # --------------------------
-        merged_rows = []
-
-        for row in body:
-
-            # 완전 빈 row 제거
-            if all(not c.strip() for c in row):
-                continue
-
-            first = row[0].strip() if row else ""
-            second = row[1].strip() if len(row) > 1 else ""
-            third = row[2].strip() if len(row) > 2 else ""
-
-            # 🔥 이어붙일 조건 (핵심!)
-            is_continuation = (
-                merged_rows and (
-                    not is_new_row(first) or   # 번호 시작 아님
-                    third == ""                # 금액 없음 → 이어지는 줄
-                )
-            )
-
-            if is_continuation:
-                prev = merged_rows[-1]
-
-                for i in range(len(row)):
-                    if row[i].strip():
-                        prev[i] += " " + row[i].strip()
-            else:
-                merged_rows.append(row)
-
-        # --------------------------
-        # 6️⃣ HTML 생성
-        # --------------------------
-        html = []
-
-        # 👉 표 제목 복원
-        if prefix_lines:
-            html.append("<div class='appendix-title'>")
-            for line in prefix_lines:
-                html.append(f"<p>{line}</p>")
-            html.append("</div>")
-
-        html.append("<table class='law-table'>")
-
-        # header
-        if final_header:
-            html.append("<thead><tr>")
-            for col in final_header:
-                html.append(f"<th>{col}</th>")
-            html.append("</tr></thead>")
-
-        # body
-        html.append("<tbody>")
-        for row in merged_rows:
-            html.append("<tr>")
-            for col in row:
-                html.append(f"<td>{col}</td>")
-            html.append("</tr>")
-        html.append("</tbody></table>")
-
-        return "\n".join(html)
+            return "\n".join(html)
     
     def _to_html(self, rows):
         if not rows:
@@ -514,47 +452,6 @@ class LawParser:
         html.append("</tbody></table>")
 
         return "\n".join(html)
-    # def _parse_ascii_table_to_html(self, content):
-    #     parsed_rows = []
-
-    #     for line in content:
-    #         if "┃" not in line:
-    #             continue
-
-    #         row = line.strip().strip("┃")
-    #         cols = [c.strip() for c in row.split("│")]
-
-    #         if not parsed_rows:
-    #             parsed_rows.append(cols)
-    #             continue
-
-    #         # 🔥 핵심: 컬럼 개수 같으면 이어붙이기
-    #         if len(cols) == len(parsed_rows[-1]):
-    #             for i in range(len(cols)):
-    #                 if cols[i]:
-    #                     parsed_rows[-1][i] += "<br>" + cols[i]
-    #         else:
-    #             parsed_rows.append(cols)
-
-    #     # HTML 생성
-    #     html = ["<table class='law-table'>"]
-
-    #     # header
-    #     html.append("<thead><tr>")
-    #     for col in parsed_rows[0]:
-    #         html.append(f"<th>{col}</th>")
-    #     html.append("</tr></thead>")
-
-    #     # body
-    #     html.append("<tbody>")
-    #     for row in parsed_rows[1:]:
-    #         html.append("<tr>")
-    #         for col in row:
-    #             html.append(f"<td>{col}</td>")
-    #         html.append("</tr>")
-    #     html.append("</tbody></table>")
-
-    #     return "\n".join(html)
 
 def format_appendix_no(no):
     if not no:
