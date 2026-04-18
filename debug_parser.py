@@ -81,6 +81,11 @@ def load_json(file_path):
     with open(file_path, "r", encoding="utf-8") as f:
         return json.load(f)
 
+def save_json(json_text, path="debug.json"):
+    with open(path, "w", encoding="utf-8") as f:
+        json_text = json.dumps(json_text, ensure_ascii=False, indent=2)
+        f.write(json_text)
+    print(f"[DEBUG] Json 저장 완료: {path}")
 
 def save_markdown(md_text, path="debug.md"):
     with open(path, "w", encoding="utf-8") as f:
@@ -258,17 +263,18 @@ def main(file_path):
     # print("JSON 구조:",data.keys())
 
     print("\n==============================")
+    print("📌 PARSE RESULT")
+    print("==============================")
+    # from pprint import pprint
+    # pprint(law)
+    save_json(data, f"text_{file_path}")
+
+    print("\n==============================")
     print("⚙️ Parser 실행")
     print("==============================")
     # parser = LawParser()
     parser = get_parser(data)
     law = parser.parse(data)
-
-    print("\n==============================")
-    print("📌 PARSE RESULT")
-    print("==============================")
-    from pprint import pprint
-    pprint(law)
 
     # 구조 확인
     print("\n==============================")
