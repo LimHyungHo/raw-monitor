@@ -1,6 +1,8 @@
 .env
+.env.local
 __pycache__/
 *.pyc
 venv/
 *.pdf
 *.json
+*.db

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}변경 상세{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <div class="panel-head">
+        <h2>{{ detail["source_document"]["document_name"] if detail["source_document"] else '변경 상세' }}</h2>
+        <p>{{ detail["change_set"]["detected_at"] }} · {{ detail["change_set"]["change_type"] }}</p>
+    </div>
+
+    <div class="detail-meta">
+        <div><strong>요약</strong><span>{{ detail["change_set"]["summary"] or '-' }}</span></div>
+        <div><strong>키워드 일치</strong><span>{{ detail["change_set"]["keyword_hit_count"] }}</span></div>
+        <div><strong>이전 시행일</strong><span>{{ detail["old_version_display"]["effective_date"] if detail["old_version_display"] else '-' }}</span></div>
+        <div><strong>새 시행일</strong><span>{{ detail["new_version"]["effective_date"] if detail["new_version"] else '-' }}</span></div>
+    </div>
+
+    <div class="toolbar">
+        <a href="{{ url_for('web.change_list') }}" class="toolbar-link">변경 이력으로 돌아가기</a>
+    </div>
+
+    {% if detail["items"] %}
+        <div class="change-item-stack">
+            {% for item in detail["items"] %}
+                <article class="change-item-card">
+                    <div class="change-item-top">
+                        <h3>{{ item["item_key"] }}</h3>
+                        <span class="status-pill {% if item["change_kind"] == '수정' %}status-active{% else %}status-inactive{% endif %}">{{ item["change_kind"] }}</span>
+                    </div>
+
+                    {% if item["matched_keywords"] %}
+                        <p class="keyword-hit">일치 키워드: {{ item["matched_keywords"] }}</p>
+                    {% endif %}
+
+                    <div class="diff-block">
+                        <pre>{{ item["diff_text"] }}</pre>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <p>저장된 상세 diff 항목이 없습니다.</p>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

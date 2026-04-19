@@ -3,3 +3,4 @@ python-dotenv
 oracledb
 markdown
 weasyprint
+flask

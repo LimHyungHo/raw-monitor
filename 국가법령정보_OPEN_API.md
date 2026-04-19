@@ -30,6 +30,8 @@
 ### 목록조회
 - URL 
 -- http://www.law.go.kr/DRF/lawSearch.do?target=admrul&OC=ITIBKI&type=JSON&query=전자금융감독규정
+-- https://www.law.go.kr/DRF/lawSearch.do?target=admrul&OC=ITIBKI&type=JSON&query=%EC%A0%84%EC%9E%90%EA%B8%88%EC%9C%B5%EA%B0%90%EB%8F%85%EA%B7%9C%EC%A0%95&nw=2
+
 ### 본문조회
 - 결과
 -- AdmRulSearch > admrul > 현행연혁구분, 행정규칙명, 발령일자, 행정규칙종류, 소관부처명, 제개정구분코드, 행정규칙상세링크, 제개정구분명, id, 생성일장, 행정규칙ID, 시행일자, 발령번호, 행정규칙일련번호

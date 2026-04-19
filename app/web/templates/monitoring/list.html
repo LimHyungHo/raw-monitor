@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}법령 모니터링 관리{% endblock %}
+
+{% block content %}
+<section class="panel panel-form">
+    <div class="panel-head">
+        <h2>모니터링 등록</h2>
+        <p>이메일을 기준으로 사용자를 식별하고, 같은 이메일 아래 여러 법령을 등록합니다.</p>
+    </div>
+
+    <form method="post" action="{{ url_for('web.monitoring_create') }}" class="monitoring-form">
+        <label>
+            <span>이메일 주소</span>
+            <input type="email" name="email" value="{{ form_data.email }}" placeholder="name@example.com" required>
+        </label>
+
+        <label>
+            <span>사용자 이름</span>
+            <input type="text" name="user_name" value="{{ form_data.user_name }}" placeholder="홍길동">
+        </label>
+
+        <label>
+            <span>법령명</span>
+            <input type="text" name="document_name" value="{{ form_data.document_name }}" placeholder="보험업법" required>
+        </label>
+
+        <label>
+            <span>대상 유형</span>
+            <select name="target_type" required>
+                <option value="law" {% if form_data.target_type == 'law' %}selected{% endif %}>법령</option>
+                <option value="admrul" {% if form_data.target_type == 'admrul' %}selected{% endif %}>행정규칙</option>
+            </select>
+        </label>
+
+        <label>
+            <span>키워드</span>
+            <textarea name="keywords" rows="4" placeholder="정보보호, 내부통제, 개인정보">{{ form_data.keywords }}</textarea>
+        </label>
+
+        <label>
+            <span>문서 ID</span>
+            <input type="text" name="document_id" value="{{ form_data.document_id }}" placeholder="알고 있으면 입력, 아니면 비워두기">
+        </label>
+
+        <label>
+            <span>알림 수신 이메일</span>
+            <input type="email" name="notify_email" value="{{ form_data.notify_email }}" placeholder="비워두면 사용자 이메일 사용">
+        </label>
+
+        <div class="form-actions">
+            <button type="submit">등록하기</button>
+        </div>
+    </form>
+</section>
+
+<section class="panel panel-list">
+    <div class="panel-head panel-head-inline">
+        <div>
+            <h2>등록 목록</h2>
+            <p>이메일 기준으로 저장된 모니터링 대상을 조회합니다.</p>
+        </div>
+
+        <form method="get" action="{{ url_for('web.monitoring_list') }}" class="filter-form">
+            <input type="email" name="email" value="{{ email }}" placeholder="조회할 이메일" required>
+            <input type="text" name="name" value="{{ name }}" placeholder="또는 이름으로 조회">
+            <button type="submit">조회</button>
+        </form>
+    </div>
+
+    <div class="toolbar">
+        {% if email or name %}
+            <a href="{{ url_for('web.change_list', email=email, name=name) }}" class="toolbar-link">변경 이력 보기</a>
+            <form method="post" action="{{ url_for('web.monitoring_run') }}">
+                <input type="hidden" name="email" value="{{ email }}">
+                <input type="hidden" name="name" value="{{ name }}">
+                <button type="submit">모니터링 실행</button>
+            </form>
+        {% endif %}
+    </div>
+
+    {% if (email or name) and targets %}
+        <div class="target-grid">
+            {% for target in targets %}
+                <article class="target-card {% if not target.is_active %}target-card-muted{% endif %}">
+                    <div class="target-top">
+                        <div>
+                            <h3>{{ target.document_name }}</h3>
+                            <p>{{ target.target_type }} · {{ target.source_org }}</p>
+                        </div>
+                        <span class="status-pill {% if target.is_active %}status-active{% else %}status-inactive{% endif %}">
+                            {% if target.is_active %}활성{% else %}비활성{% endif %}
+                        </span>
+                    </div>
+
+                    <dl class="meta-list">
+                        <div><dt>사용자</dt><dd>{{ target.user_name or '-' }} / {{ target.user_email or '-' }}</dd></div>
+                        <div><dt>모니터링명</dt><dd>{{ target.target_name }}</dd></div>
+                        <div><dt>문서 ID</dt><dd>{{ target.document_id or '-' }}</dd></div>
+                        <div><dt>알림 이메일</dt><dd>{{ target.notify_email }}</dd></div>
+                        <div><dt>키워드</dt><dd>
+                            {% if target.keywords %}
+                                {{ target.keywords | map(attribute='keyword') | join(', ') }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </dd></div>
+                    </dl>
+
+                    {% if target.is_active %}
+                        <form method="post" action="{{ url_for('web.monitoring_deactivate', target_id=target.id) }}">
+                            <input type="hidden" name="email" value="{{ email }}">
+                            <input type="hidden" name="name" value="{{ name }}">
+                            <button type="submit" class="secondary-button">비활성화</button>
+                        </form>
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </div>
+    {% elif email or name %}
+        <div class="empty-state">
+            <p>해당 조회 조건으로 등록된 모니터링 대상이 없습니다.</p>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <p>오른쪽 조회창에 이메일 또는 이름을 입력하면 등록된 법령 목록을 볼 수 있습니다.</p>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}
