@@ -93,7 +93,7 @@ class LawIdService:
                 target=normalized_target,
                 query=name,
                 nw=2,
-                knd=3,
+                # knd=3,
                 sort="efdes",
             )
         else:
