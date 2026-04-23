@@ -41,4 +41,7 @@
 --- 행정규칙상세링크 : http://www.law.go.kr/DRF/lawService.do?OC=ITIBKI&target=admrul&ID=2200000108281&type=JSON&mobileYn=
 --- 행정규칙종류: 세칙
 
+https://www.law.go.kr/DRF/lawService.do?OC=ITIBKI&target=admrul&ID=2200000108281&type=JSON
+https://www.law.go.kr/DRF/lawService.do?OC=ITIBKI&target=admrul&ID=2100000254312&type=JSON
+
 <!-- curl -o debug_전자금융거래법_251216.json "http://www.law.go.kr/DRF/lawService.do?OC=ITIBKI&target=eflaw&MST=280277&type=JSON&mobileYn=&efYd=20251216" -->
