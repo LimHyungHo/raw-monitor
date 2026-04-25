@@ -17,8 +17,30 @@
     </div>
 
     <div class="toolbar">
-        <a href="{{ url_for('web.change_list') }}" class="toolbar-link">변경 이력으로 돌아가기</a>
+        <a href="{{ back_context.list_url if back_context else url_for('web.change_list') }}" class="toolbar-link">변경 이력으로 돌아가기</a>
+        <form method="post" action="{{ url_for('web.change_detail_analyze_gpt', change_set_id=detail['change_set']['id']) }}">
+            <input type="hidden" name="email" value="{{ back_context.email if back_context else '' }}">
+            <input type="hidden" name="name" value="{{ back_context.name if back_context else '' }}">
+            {% if back_context %}
+                {% for target_id in back_context.target_ids %}
+                    <input type="hidden" name="target_ids" value="{{ target_id }}">
+                {% endfor %}
+            {% endif %}
+            <button type="submit">GPT 비교 분석</button>
+        </form>
     </div>
+
+    {% if gpt_analysis %}
+        <section class="gpt-analysis-card">
+            <div class="panel-head">
+                <h2>GPT 비교 분석</h2>
+                <p>{{ gpt_analysis.model }}</p>
+            </div>
+            <div class="gpt-analysis-body">
+                <pre>{{ gpt_analysis.text }}</pre>
+            </div>
+        </section>
+    {% endif %}
 
     {% if detail["items"] %}
         <div class="change-item-stack">

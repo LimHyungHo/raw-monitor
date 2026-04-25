@@ -31,14 +31,14 @@ class MonitoringService:
         self.change_set_repository = ChangeSetRepository()
         self.change_item_repository = ChangeItemRepository()
 
-    def run(self):
+    def run(self, target_ids=None):
         self._validate_runtime_config()
 
         print("\n" + "=" * 30)
         print("   DB 기반 법령 모니터링 시작")
         print("=" * 30)
 
-        targets = self._list_active_targets()
+        targets = self._list_active_targets(target_ids=target_ids)
         if not targets:
             print("📭 활성화된 모니터링 대상이 없습니다.")
             return []
@@ -343,21 +343,31 @@ class MonitoringService:
             return None
         return self.collector.fetch_json(target_type, previous_document_id)
 
-    def _list_active_targets(self):
+    def _list_active_targets(self, target_ids=None):
         conn = None
         try:
             from app.repositories.db import get_connection
 
             conn = get_connection()
             cur = conn.cursor()
-            cur.execute(
-                """
+            query = """
                 SELECT *
                 FROM monitoring_targets
                 WHERE is_active = 1
-                ORDER BY id ASC
-                """
-            )
+            """
+            params = []
+            normalized_ids = [
+                int(target_id)
+                for target_id in (target_ids or [])
+                if str(target_id).strip().isdigit()
+            ]
+            if normalized_ids:
+                placeholders = ", ".join("?" for _ in normalized_ids)
+                query += f" AND id IN ({placeholders})"
+                params.extend(normalized_ids)
+
+            query += " ORDER BY id ASC"
+            cur.execute(query, params)
             rows = cur.fetchall()
             return [dict(row) for row in rows]
         finally:

@@ -70,10 +70,20 @@
 
     <div class="toolbar">
         {% if email or name %}
-            <a href="{{ url_for('web.change_list', email=email, name=name) }}" class="toolbar-link">변경 이력 보기</a>
-            <form method="post" action="{{ url_for('web.monitoring_run') }}">
+            <form method="get" action="{{ url_for('web.change_list') }}" id="change-history-form">
                 <input type="hidden" name="email" value="{{ email }}">
                 <input type="hidden" name="name" value="{{ name }}">
+                <input type="hidden" name="require_selection" value="1">
+                <button type="submit" class="toolbar-link toolbar-button-link">선택 대상 변경 이력</button>
+            </form>
+            <div class="selection-tools">
+                <button type="button" class="secondary-button" id="select-all-targets">전체 선택</button>
+                <button type="button" class="secondary-button" id="clear-all-targets">선택 해제</button>
+            </div>
+            <form method="post" action="{{ url_for('web.monitoring_run') }}" id="monitoring-run-form">
+                <input type="hidden" name="email" value="{{ email }}">
+                <input type="hidden" name="name" value="{{ name }}">
+                <input type="hidden" name="require_selection" value="1">
                 <button type="submit">모니터링 실행</button>
             </form>
         {% endif %}
@@ -85,6 +95,26 @@
                 <article class="target-card {% if not target.is_active %}target-card-muted{% endif %}">
                     <div class="target-top">
                         <div>
+                            {% if target.is_active %}
+                                <label class="target-select">
+                                    <input
+                                        type="checkbox"
+                                        name="target_ids"
+                                        value="{{ target.id }}"
+                                        form="monitoring-run-form"
+                                    >
+                                    <input
+                                        type="checkbox"
+                                        name="target_ids"
+                                        value="{{ target.id }}"
+                                        form="change-history-form"
+                                        class="target-history-proxy"
+                                        checked
+                                        hidden
+                                    >
+                                    <span>이 대상 선택</span>
+                                </label>
+                            {% endif %}
                             <h3>{{ target.document_name }}</h3>
                             <p>{{ target.target_type }} · {{ target.source_org }}</p>
                         </div>
@@ -108,6 +138,12 @@
                     </dl>
 
                     {% if target.is_active %}
+                        <form method="post" action="{{ url_for('web.monitoring_send_latest_pdf', target_id=target.id) }}">
+                            <input type="hidden" name="email" value="{{ email }}">
+                            <input type="hidden" name="name" value="{{ name }}">
+                            <button type="submit">최신 법령 PDF 메일</button>
+                        </form>
+
                         <form method="post" action="{{ url_for('web.monitoring_deactivate', target_id=target.id) }}">
                             <input type="hidden" name="email" value="{{ email }}">
                             <input type="hidden" name="name" value="{{ name }}">
@@ -127,4 +163,62 @@
         </div>
     {% endif %}
 </section>
+<script>
+    window.addEventListener("load", function () {
+        var monitoringCheckboxes = Array.prototype.slice.call(
+            document.querySelectorAll("input[name='target_ids'][form='monitoring-run-form']")
+        );
+        var historyCheckboxes = Array.prototype.slice.call(
+            document.querySelectorAll("input.target-history-proxy[form='change-history-form']")
+        );
+        var selectAllButton = document.getElementById("select-all-targets");
+        var clearAllButton = document.getElementById("clear-all-targets");
+        var historyForm = document.getElementById("change-history-form");
+
+        function syncHistoryTargets() {
+            monitoringCheckboxes.forEach(function (checkbox, index) {
+                if (historyCheckboxes[index]) {
+                    historyCheckboxes[index].checked = checkbox.checked;
+                }
+            });
+        }
+
+        if (selectAllButton) {
+            selectAllButton.addEventListener("click", function () {
+                monitoringCheckboxes.forEach(function (checkbox) {
+                    checkbox.checked = true;
+                });
+                syncHistoryTargets();
+            });
+        }
+
+        if (clearAllButton) {
+            clearAllButton.addEventListener("click", function () {
+                monitoringCheckboxes.forEach(function (checkbox) {
+                    checkbox.checked = false;
+                });
+                syncHistoryTargets();
+            });
+        }
+
+        monitoringCheckboxes.forEach(function (checkbox) {
+            checkbox.addEventListener("change", syncHistoryTargets);
+        });
+
+        syncHistoryTargets();
+
+        if (historyForm) {
+            historyForm.addEventListener("submit", function (event) {
+                syncHistoryTargets();
+                var hasSelected = monitoringCheckboxes.some(function (checkbox) {
+                    return checkbox.checked;
+                });
+                if (!hasSelected) {
+                    event.preventDefault();
+                    window.alert("변경 이력을 볼 대상을 선택해 주세요.");
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}

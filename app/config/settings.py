@@ -28,5 +28,8 @@ class Settings:
     MAIL_USER = os.getenv("MAIL_USER")
     MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
     MAIL_TO = os.getenv("MAIL_TO")
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+    OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
 
 settings = Settings()

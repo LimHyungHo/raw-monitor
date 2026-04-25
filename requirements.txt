@@ -4,3 +4,4 @@ oracledb
 markdown
 weasyprint
 flask
+reportlab

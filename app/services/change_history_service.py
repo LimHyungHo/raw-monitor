@@ -17,17 +17,24 @@ class ChangeHistoryService:
         self.change_item_repository = ChangeItemRepository()
         self.law_id_service = LawIdService()
 
-    def list_changes(self, *, email=None, name=None, limit_per_target=10):
+    def list_changes(self, *, email=None, name=None, target_ids=None, limit_per_target=10):
         users = self.user_service.list_users(email=email, name=name)
         if not users:
             return []
 
+        allowed_target_ids = {
+            int(target_id)
+            for target_id in (target_ids or [])
+            if str(target_id).strip().isdigit()
+        }
         histories = []
 
         for user in users:
             targets = self.target_repository.list_targets_by_user(user["id"], active_only=False)
 
             for target in targets:
+                if allowed_target_ids and target["id"] not in allowed_target_ids:
+                    continue
                 document_id = target.get("document_id")
                 if not document_id:
                     continue
